@@ -376,6 +376,36 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
   var speechOK = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
   var keepAliveTimer = null;
   var speechToken = 0; // bumped on every intentional interrupt, invalidates in-flight callbacks
+  var voiceList = [];
+  var noZhVoiceWarned = false;
+
+  function refreshVoices() {
+    if (!speechOK) return;
+    var v = window.speechSynthesis.getVoices();
+    if (v && v.length) voiceList = v;
+  }
+  if (speechOK) {
+    refreshVoices();
+    window.speechSynthesis.onvoiceschanged = refreshVoices;
+  }
+
+  function pickVoice(langPrefix) {
+    if (!voiceList.length) refreshVoices();
+    if (!voiceList.length) return null;
+    var lower = langPrefix.toLowerCase();
+    var base = lower.split('-')[0];
+    var exact = null, partial = null;
+    for (var i = 0; i < voiceList.length; i++) {
+      var vl = (voiceList[i].lang || '').toLowerCase();
+      if (vl === lower) { exact = voiceList[i]; break; }
+      if (!partial && vl.indexOf(base) === 0) partial = voiceList[i];
+    }
+    return exact || partial;
+  }
+
+  function hasZhVoice() {
+    return !!pickVoice('zh-CN');
+  }
 
   function startKeepAlive() {
     stopKeepAlive();
@@ -397,6 +427,8 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     if (!speechOK || !text) { if (onend) onend(); return; }
     var u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
+    var v = pickVoice(lang);
+    if (v) u.voice = v;
     u.rate = rate || 1;
     u.onend = onend || null;
     u.onerror = onend || null;
@@ -753,6 +785,8 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     wrap.appendChild(modeSection);
     if (!speechOK) {
       wrap.appendChild(el('div', { class: 'notice' }, ['이 브라우저는 음성 읽기(TTS)를 지원하지 않아요. 듣기 모드 대신 최신 크롬/사파리를 사용해보세요.']));
+    } else if (!hasZhVoice()) {
+      wrap.appendChild(el('div', { class: 'notice' }, ['이 기기에는 중국어 음성이 설치되어 있지 않아 소리가 안 나올 수 있어요. 설정 앱에서 "중국어(간체) 음성"을 추가해보세요 (아이폰: 손쉬운 사용 → 음성 콘텐츠 → 음성, 안드로이드: 설정 → 접근성 → 텍스트 음성 변환).']));
     }
     return wrap;
   }
