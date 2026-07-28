@@ -374,7 +374,6 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
 
   // ---------- speech (TTS) ----------
   var speechOK = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
-  var keepAliveTimer = null;
   var speechToken = 0; // bumped on every intentional interrupt, invalidates in-flight callbacks
   var voiceList = [];
   var noZhVoiceWarned = false;
@@ -407,22 +406,6 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     return !!pickVoice('zh-CN');
   }
 
-  function startKeepAlive() {
-    stopKeepAlive();
-    // Chrome has a long-standing bug where speechSynthesis silently stalls
-    // after ~15s unless nudged; pause+resume keeps the queue alive.
-    keepAliveTimer = setInterval(function () {
-      if (speechOK && window.speechSynthesis.speaking) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-    }, 4000);
-  }
-
-  function stopKeepAlive() {
-    if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
-  }
-
   function speakOne(text, lang, rate, onend) {
     if (!speechOK || !text) { if (onend) onend(); return; }
     var u = new SpeechSynthesisUtterance(text);
@@ -439,18 +422,16 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     if (!speechOK) { if (onend) onend(); return; }
     var myToken = ++speechToken;
     window.speechSynthesis.cancel();
-    startKeepAlive();
     // small delay: speaking immediately after cancel() clips the start of
     // the next utterance on many mobile browsers
     setTimeout(function () {
       if (myToken !== speechToken) return;
-      speakOne(row['단어'], 'zh-CN', 0.66, function () {
+      speakOne(row['단어'], 'zh-CN', 0.85, function () {
         if (myToken !== speechToken) return;
         setTimeout(function () {
           if (myToken !== speechToken) return;
-          speakOne(row['뜻'], 'en-US', 0.78, function () {
+          speakOne(row['뜻'], 'en-US', 0.95, function () {
             if (myToken !== speechToken) return;
-            stopKeepAlive();
             if (onend) onend();
           });
         }, 180);
@@ -460,7 +441,6 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
 
   function stopSpeech() {
     speechToken++; // invalidate any callbacks still in flight from a previous chain
-    stopKeepAlive();
     if (speechOK) window.speechSynthesis.cancel();
   }
 
@@ -468,12 +448,10 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     if (!speechOK) { if (onend) onend(); return; }
     var myToken = ++speechToken;
     window.speechSynthesis.cancel();
-    startKeepAlive();
     setTimeout(function () {
       if (myToken !== speechToken) return;
-      speakOne(row['단어'], 'zh-CN', 0.66, function () {
+      speakOne(row['단어'], 'zh-CN', 0.85, function () {
         if (myToken !== speechToken) return;
-        stopKeepAlive();
         if (onend) onend();
       });
     }, 80);
@@ -486,6 +464,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
   var deck = []; // array of {idx, ...row}
   var cardIndex = 0;
   var flipped = false;
+  var pinyinShown = false;
   var stampAnim = null;
 
   var quizQueue = [];
@@ -533,6 +512,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     deck = buildDeck(currentLevel, mode);
     cardIndex = 0;
     flipped = false;
+    pinyinShown = false;
     if (deck.length === 0) { go('level'); return; }
     go('flashcards');
   }
@@ -607,6 +587,12 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     render();
   }
 
+  function togglePinyin() {
+    if (flipped) return;
+    pinyinShown = !pinyinShown;
+    render();
+  }
+
   function nextCard(mark) {
     if (mark !== undefined) {
       var it = deck[cardIndex];
@@ -616,6 +602,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     if (cardIndex < deck.length - 1) {
       cardIndex++;
       flipped = false;
+      pinyinShown = false;
       render();
       setTimeout(function () { stampAnim = null; render(); }, 550);
     } else {
@@ -628,6 +615,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     if (cardIndex > 0) {
       cardIndex--;
       flipped = false;
+      pinyinShown = false;
       render();
     }
   }
@@ -802,11 +790,11 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     ]));
 
     var cardWrap = el('div', { class: 'card-area' });
-    var cardEl = el('div', { class: 'flashcard' + (flipped ? ' flipped' : ''), onclick: flipCard }, [
+    var cardEl = el('div', { class: 'flashcard' + (flipped ? ' flipped' : ''), onclick: togglePinyin }, [
       el('div', { class: 'card-face card-front' }, [
         el('div', { class: 'hanzi' }, [row['단어']]),
-        el('div', { class: 'pinyin' }, [row['병음']]),
-        el('div', { class: 'tap-hint' }, ['탭하여 뜻 보기'])
+        pinyinShown ? el('div', { class: 'pinyin' }, [row['병음']]) : null,
+        el('div', { class: 'tap-hint' }, [pinyinShown ? '좌우로 스와이프해 뜻 보기' : '탭하여 병음 보기'])
       ]),
       el('div', { class: 'card-face card-back' }, [
         row['품사'] ? el('div', { class: 'pos-tag' }, [row['품사']]) : null,
@@ -1026,7 +1014,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     root.appendChild(screen);
   }
 
-  // swipe support for flashcards
+  // swipe support for flashcards: swipe left/right flips the card to the back
   var touchStartX = null;
   document.addEventListener('touchstart', function (e) {
     if (view !== 'flashcards') return;
@@ -1036,8 +1024,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     if (view !== 'flashcards' || touchStartX === null) return;
     var dx = e.changedTouches[0].clientX - touchStartX;
     if (Math.abs(dx) > 60) {
-      if (dx < 0) nextCard();
-      else prevCard();
+      flipCard();
     }
     touchStartX = null;
   }, { passive: true });
