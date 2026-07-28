@@ -225,6 +225,10 @@ button:disabled{opacity:0.35;cursor:default;}
   background:var(--paper-2);color:var(--ink-soft);font-size:12px;line-height:1.6;
   border:1px solid var(--border);
 }
+.notice.warn{
+  background:#F5DEDB;color:var(--seal-dark);border-color:var(--seal);
+  font-weight:600;
+}
 
 /* ---- speaker button on flashcard ---- */
 .card-area{position:relative;}
@@ -314,19 +318,33 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
 
   var STORAGE_KEY = 'hsk_progress_v1';
   var progress = {}; // { "HSK 1급-0": true, ... }
-  var storageOK = true;
+
+  function testStorage() {
+    try {
+      var k = '__hsk_storage_test__';
+      window.localStorage.setItem(k, '1');
+      var v = window.localStorage.getItem(k);
+      window.localStorage.removeItem(k);
+      return v === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+  var storageOK = testStorage();
 
   function loadProgress() {
-    try {
-      var raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        progress = JSON.parse(raw);
-        return;
+    if (storageOK) {
+      try {
+        var raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          progress = JSON.parse(raw);
+          return;
+        }
+      } catch (e) {
+        storageOK = false;
       }
-    } catch (e) {
-      storageOK = false;
     }
-    // first run: seed from '상태' column (완벽 = mastered)
+    // first run (or storage unavailable): seed from '상태' column (완벽 = mastered)
     LEVELS.forEach(function (level) {
       DATA[level].forEach(function (row, idx) {
         if (row['상태'] && row['상태'].trim() === '완벽') {
@@ -338,8 +356,11 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
   }
 
   function saveProgress() {
+    if (!storageOK) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+      var check = window.localStorage.getItem(STORAGE_KEY);
+      if (!check) storageOK = false;
     } catch (e) {
       storageOK = false;
     }
@@ -708,6 +729,11 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
       el('h1', {}, ['HSK 단어장']),
       el('p', { class: 'sub' }, ['외운 단어 ' + LEVELS.reduce(function(s,l){return s+masteredCount(l);},0) + ' / ' + LEVELS.reduce(function(s,l){return s+DATA[l].length;},0)])
     ]));
+    if (!storageOK) {
+      wrap.appendChild(el('div', { class: 'notice warn' }, [
+        '⚠️ 이 브라우저(또는 이 화면)에서는 암기 체크가 저장되지 않고 있어요. 시크릿/개인정보 보호 모드는 아닌지, 브라우저 설정에서 "모든 쿠키 차단" 같은 옵션이 켜져있지 않은지 확인해보시고, 배포된 주소를 일반 탭에서 열어보세요.'
+      ]));
+    }
     var list = el('div', { class: 'level-list' });
     LEVELS.forEach(function (level) {
       var total = DATA[level].length;
