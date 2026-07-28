@@ -145,7 +145,7 @@ button:disabled{opacity:0.35;cursor:default;}
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:24px;text-align:center;
 }
-.card-back{transform:rotateY(180deg);justify-content:flex-start;padding-top:60px;}
+.card-back{transform:rotateY(180deg);}
 .hanzi{
   font-family:"STKaiti","Kaiti SC","KaiTi","Songti SC",serif;
   font-size:76px;line-height:1.1;color:var(--ink);
@@ -426,7 +426,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     // the next utterance on many mobile browsers
     setTimeout(function () {
       if (myToken !== speechToken) return;
-      speakOne(row['단어'], 'zh-CN', 0.85, function () {
+      speakOne(row['단어'], 'zh-CN', 0.72, function () {
         if (myToken !== speechToken) return;
         setTimeout(function () {
           if (myToken !== speechToken) return;
@@ -450,7 +450,7 @@ var DATA = {"HSK 1급": [{"단어": "爱", "병음": "ài", "품사": "동사", 
     window.speechSynthesis.cancel();
     setTimeout(function () {
       if (myToken !== speechToken) return;
-      speakOne(row['단어'], 'zh-CN', 0.85, function () {
+      speakOne(row['단어'], 'zh-CN', 0.72, function () {
         if (myToken !== speechToken) return;
         if (onend) onend();
       });
